@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 import { hashPassword, generateVerificationToken } from '@/lib/auth/password';
 import { sendVerificationEmail } from '@/lib/utils/email';
 import { registerSchema } from '@/lib/utils/validation';
+import { Prisma } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     const verificationToken = generateVerificationToken();
 
     // Create user with profile
-    const user = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const newUser = await tx.user.create({
         data: {
           email: email.toLowerCase(),
