@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Merriweather } from 'next/font/google';
-import '../styles/globals.css';
+import '.';
 import { ThemeProvider } from '@/lib/utils/theme-provider';
 import { AuthProvider } from '@/lib/auth/auth-context';
 import { ToastProvider } from '@/components/ui/toast';
