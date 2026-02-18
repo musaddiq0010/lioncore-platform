@@ -1,0 +1,89 @@
+import type { Metadata, Viewport } from 'next';
+import { Inter, Merriweather } from 'next/font/google';
+import './globals.css';
+import { ThemeProvider } from '@/lib/utils/theme-provider';
+import { AuthProvider } from '@/lib/auth/auth-context';
+import { ToastProvider } from '@/components/ui/toast';
+import { Toaster } from '@/components/toaster';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const merriweather = Merriweather({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'LionCore Platform - Hon. Abdulazeez Izuafa Campaign',
+  description: 'The Fearless Lion: Vision, Courage, Progress - Join the movement for a better Estako West LGA, Edo State.',
+  keywords: ['LionCore', 'Abdulazeez Izuafa', 'APC', 'Estako West', 'Edo State', 'Campaign', 'Politics'],
+  authors: [{ name: 'LionCore Platform' }],
+  creator: 'LionCore Platform',
+  publisher: 'LionCore Platform',
+  robots: 'index, follow',
+  openGraph: {
+    type: 'website',
+    locale: 'en_NG',
+    url: 'https://lioncore.com',
+    siteName: 'LionCore Platform',
+    title: 'LionCore Platform - The Fearless Lion',
+    description: 'Join the movement for Vision, Courage, and Progress in Estako West LGA.',
+    images: [
+      {
+        url: '/images/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'LionCore Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'LionCore Platform - The Fearless Lion',
+    description: 'Join the movement for Vision, Courage, and Progress in Estako West LGA.',
+    images: ['/images/og-image.jpg'],
+  },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#B91C1C' },
+    { media: '(prefers-color-scheme: dark)', color: '#991B1B' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${merriweather.variable} font-sans`}>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              {children}
+              <Toaster />
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

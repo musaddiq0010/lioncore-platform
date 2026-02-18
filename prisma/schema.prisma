@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Roles Enum
+enum UserRole {
+  SUPER_ADMIN
+  LGA_ADMIN
+  MEDIA_ADMIN
+  WARD_COORDINATOR
+  SUPPORTER
+}
+
+// User Status Enum
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+// Feature Flags for enabling/disabling features
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Boolean  @default(false)
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
+
+// Main User Model
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  password          String
+  role              UserRole   @default(SUPPORTER)
+  status            UserStatus @default(PENDING)
+  emailVerified     Boolean    @default(false)
+  emailVerifiedAt   DateTime?
+  verificationToken String?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  lastLoginAt       DateTime?
+  loginCount        Int        @default(0)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  // Relations
+  profile         Profile?
+  supporter       Supporter?
+  auditLogs       AuditLog[]
+  sessions        Session[]
+  blogPosts       BlogPost[]
+  eventsCreated   Event[]
+  eventRSVPs      EventRSVP[]
+  referralsGiven  Referral[]   @relation("Referrer")
+  referralsReceived Referral[] @relation("Referred")
+  issueReports    IssueReport[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+// User Profile
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Session for JWT tracking
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// Supporter Model (Campaign Members)
+model Supporter {
+  id                  String   @id @default(cuid())
+  userId              String?  @unique
+  fullName            String
+  email               String   @unique
+  phone               String
+  address             String
+  ward                String
+  lga                 String   @default("Estako West")
+  state               String   @default("Edo")
+  topIssues           String[] // Array of issue IDs
+  volunteerInterest   String[] // Array of volunteer areas
+  consentGiven        Boolean
+  consentDate         DateTime @default(now())
+  engagementScore     Int      @default(0)
+  referralCode        String   @unique
+  referredBy          String?
+  status              String   @default("active")
+  tags                String[]
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user         User?         @relation(fields: [userId], references: [id])
+  referrals    Referral[]
+  activities   Activity[]
+  issueReports IssueReport[]
+
+  @@index([ward])
+  @@index([lga])
+  @@index([referralCode])
+  @@index([status])
+  @@index([engagementScore])
+}
+
+// Referral System
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String
+  referredId  String
+  supporterId String?
+  status      String   @default("pending") // pending, converted, expired
+  createdAt   DateTime @default(now())
+  convertedAt DateTime?
+
+  referrer  User      @relation("Referrer", fields: [referrerId], references: [id])
+  referred  User      @relation("Referred", fields: [referredId], references: [id])
+  supporter Supporter? @relation(fields: [supporterId], references: [id])
+
+  @@unique([referrerId, referredId])
+  @@index([referrerId])
+  @@index([status])
+}
+
+// Activity Tracking for Gamification
+model Activity {
+  id          String   @id @default(cuid())
+  supporterId String
+  type        String // login, share, rsvp, referral, post_share, etc.
+  points      Int      @default(0)
+  metadata    Json? // Additional data about the activity
+  createdAt   DateTime @default(now())
+
+  supporter Supporter @relation(fields: [supporterId], references: [id], onDelete: Cascade)
+
+  @@index([supporterId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Blog Posts
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String?
+  content     String
+  featuredImage String?
+  authorId    String
+  status      String    @default("draft") // draft, published, scheduled
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  viewCount   Int       @default(0)
+  tags        String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([status])
+  @@index([publishedAt])
+  @@index([slug])
+}
+
+// Events
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  location    String
+  startDate   DateTime
+  endDate     DateTime?
+  ward        String? // null means all wards
+  lga         String?
+  maxAttendees Int?
+  createdBy   String
+  status      String   @default("upcoming") // upcoming, ongoing, completed, cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator User        @relation(fields: [createdBy], references: [id])
+  rsvps   EventRSVP[]
+
+  @@index([status])
+  @@index([startDate])
+  @@index([ward])
+}
+
+// Event RSVPs
+model EventRSVP {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("going") // going, maybe, not_going, attended
+  guests    Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Issue Reports from Supporters
+model IssueReport {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String
+  ward        String
+  lga         String
+  status      String   @default("open") // open, in_progress, resolved, closed
+  priority    String   @default("medium") // low, medium, high, urgent
+  reportedBy  String
+  supporterId String?
+  assignedTo  String?
+  resolution  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reporter  User       @relation(fields: [reportedBy], references: [id])
+  supporter Supporter? @relation(fields: [supporterId], references: [id])
+
+  @@index([status])
+  @@index([ward])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+// Audit Logs for Admin Actions
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  entity    String // table/model name
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Campaign Settings
+model CampaignSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
+
+// Candidates (for multi-candidate support - hidden by default)
+model Candidate {
+  id          String   @id @default(cuid())
+  name        String
+  party       String
+  position    String
+  lga         String
+  ward        String?
+  bio         String?
+  photo       String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([lga])
+}
+
+// Debates (hidden by default)
+model Debate {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  scheduledAt DateTime
+  location    String
+  status      String   @default("scheduled") // scheduled, live, completed, cancelled
+  videoUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  participants DebateParticipant[]
+}
+
+// Debate Participants
+model DebateParticipant {
+  id          String @id @default(cuid())
+  debateId    String
+  candidateId String
+  order       Int
+
+  debate    Debate    @relation(fields: [debateId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([debateId, candidateId])
+}
+
+// Donations (hidden by default)
+model Donation {
+  id            String   @id @default(cuid())
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("NGN")
+  donorName     String?
+  donorEmail    String?
+  donorPhone    String?
+  message       String?
+  isAnonymous   Boolean  @default(false)
+  paymentRef    String?
+  paymentStatus String   @default("pending") // pending, completed, failed, refunded
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+// Analytics - Daily Stats
+model DailyStats {
+  id                String   @id @default(cuid())
+  date              DateTime @unique
+  newRegistrations  Int      @default(0)
+  activeLogins      Int      @default(0)
+  newReferrals      Int      @default(0)
+  blogViews         Int      @default(0)
+  eventRSVPs        Int      @default(0)
+  issueReports      Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([date])
+}
+
+// Ward Statistics
+model WardStats {
+  id              String @id @default(cuid())
+  ward            String @unique
+  lga             String
+  totalSupporters Int    @default(0)
+  activeSupporters Int   @default(0)
+  engagementScore Int    @default(0)
+  topIssues       Json? // {issue: count}
+  lastUpdated     DateTime @updatedAt
+
+  @@index([lga])
+  @@index([totalSupporters])
+}
