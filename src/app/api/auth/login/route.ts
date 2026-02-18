@@ -67,10 +67,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Update daily stats
-    await updateDailyStats(new Date(), {
-      activeLogins: { increment: 1 },
-    });
+    // // Update daily stats (temporarily disabled)
+await updateDailyStats(new Date(), {});
 
     // Generate token
     const token = generateToken({
