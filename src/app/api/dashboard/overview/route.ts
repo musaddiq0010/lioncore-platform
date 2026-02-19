@@ -122,17 +122,14 @@ export async function GET(request: NextRequest) {
       : 0;
 
     return NextResponse.json({
-      totalSupporters,
-      weeklyGrowth: Math.round(weeklyGrowth * 10) / 10,
-      activeSupporters,
-      totalEvents,
-      upcomingEvents,
-      totalBlogPosts,
-      totalIssueReports,
-      supportersByWard.map((s: any) => ({
-        ward: s.ward,
-        count: s._count.id,
-      })),
+  upcomingEvents,
+  totalBlogPosts,
+  totalIssueReports,
+  supportersByWard: supportersByWard.map((s: any) => ({
+  ward: s.ward,
+  count: s._count.id,
+})),
+})
       dailyRegistrations: dailyRegistrations.map(d => ({
         date: d.date.toLocaleDateString('en-US', { weekday: 'short' }),
         count: d.newRegistrations,
