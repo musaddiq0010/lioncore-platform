@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       upcomingEvents,
       totalBlogPosts,
       totalIssueReports,
-      supportersByWard: supportersByWard.map(s => ({
+      supportersByWard.map((s: any) => ({
         ward: s.ward,
         count: s._count.id,
       })),
