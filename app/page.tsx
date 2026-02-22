@@ -5,24 +5,48 @@ import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     fetchPosts();
+    fetchSuggestions();
   }, []);
 
   async function fetchPosts() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setPosts(data);
-    }
+    if (data) setPosts(data);
+  }
+
+  async function fetchSuggestions() {
+    const { data } = await supabase
+      .from("suggestions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) setSuggestions(data);
+  }
+
+  async function handleSubmit(postId: string) {
+    if (!message) return;
+
+    await supabase.from("suggestions").insert([
+      {
+        post_id: postId,
+        message,
+      },
+    ]);
+
+    setMessage("");
+    fetchSuggestions();
   }
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: 20 }}>
       <h1>Lioncore Platform</h1>
 
       {posts.map((post) => (
@@ -30,14 +54,37 @@ export default function Home() {
           key={post.id}
           style={{
             border: "1px solid #ccc",
-            padding: "15px",
-            marginBottom: "10px",
+            padding: 15,
+            marginBottom: 20,
           }}
         >
           <h3>{post.title}</h3>
           <p>{post.content}</p>
+
+          <hr />
+
+          <h4>Suggestions:</h4>
+
+          {suggestions
+            .filter((s) => s.post_id === post.id)
+            .map((s) => (
+              <p key={s.id}>• {s.message}</p>
+            ))}
+
+          <br />
+
+          <input
+            type="text"
+            placeholder="Write your suggestion..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+
+          <button onClick={() => handleSubmit(post.id)}>
+            Submit
+          </button>
         </div>
       ))}
     </div>
   );
-    }
+      }
