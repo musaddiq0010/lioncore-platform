@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Admin() {
@@ -8,15 +8,26 @@ export default function Admin() {
   const [authenticated, setAuthenticated] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
     if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
       setAuthenticated(true);
+      fetchPosts();
     } else {
       alert("Wrong password");
     }
   };
+
+  async function fetchPosts() {
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) setPosts(data);
+  }
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -28,16 +39,21 @@ export default function Admin() {
       { title, content },
     ]);
 
-    if (error) {
-      alert("Error uploading post");
-      setLoading(false);
-      return;
+    if (!error) {
+      setTitle("");
+      setContent("");
+      fetchPosts();
     }
 
-    alert("Post uploaded!");
-    setTitle("");
-    setContent("");
     setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    const confirmDelete = confirm("Delete this post?");
+    if (!confirmDelete) return;
+
+    await supabase.from("posts").delete().eq("id", id);
+    fetchPosts();
   };
 
   if (!authenticated) {
@@ -81,6 +97,20 @@ export default function Admin() {
           {loading ? "Uploading..." : "Upload Post"}
         </button>
       </form>
+
+      <hr />
+
+      <h2>Existing Posts</h2>
+
+      {posts.map((post) => (
+        <div key={post.id} style={{ marginBottom: 15 }}>
+          <strong>{post.title}</strong>
+          <br />
+          <button onClick={() => handleDelete(post.id)}>
+            Delete
+          </button>
+        </div>
+      ))}
     </div>
   );
-        }
+            }
