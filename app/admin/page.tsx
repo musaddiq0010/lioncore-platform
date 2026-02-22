@@ -12,6 +12,31 @@ export default function Admin() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+  if (!authenticated) return;
+
+  fetchPosts();
+  fetchSuggestions();
+
+  const channel = supabase
+    .channel("admin-live")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "posts" },
+      () => fetchPosts()
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "suggestions" },
+      () => fetchSuggestions()
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [authenticated]);
+  
   const handleLogin = () => {
     if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
       setAuthenticated(true);
