@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     fetchPosts();
@@ -32,6 +32,7 @@ export default function Home() {
   }
 
   async function handleSubmit(postId: string) {
+    const message = messages[postId];
     if (!message) return;
 
     await supabase.from("suggestions").insert([
@@ -41,7 +42,7 @@ export default function Home() {
       },
     ]);
 
-    setMessage("");
+    setMessages({ ...messages, [postId]: "" });
     fetchSuggestions();
   }
 
@@ -76,8 +77,10 @@ export default function Home() {
           <input
             type="text"
             placeholder="Write your suggestion..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            value={messages[post.id] || ""}
+            onChange={(e) =>
+              setMessages({ ...messages, [post.id]: e.target.value })
+            }
           />
 
           <button onClick={() => handleSubmit(post.id)}>
@@ -87,4 +90,4 @@ export default function Home() {
       ))}
     </div>
   );
-      }
+             }
