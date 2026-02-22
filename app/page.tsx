@@ -1,72 +1,36 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-
-export default function Home() {
-  const [posts, setPosts] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
-
-  async function loadData() {
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    const { data: suggestionsData } = await supabase
-      .from("suggestions")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (postsData) setPosts(postsData);
-    if (suggestionsData) setSuggestions(suggestionsData);
-  }
-
-  async function submitSuggestion(e: React.FormEvent) {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    await supabase.from("suggestions").insert([{ message }]);
-    setMessage("");
-    loadData();
-  }
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
+export default function HomePage() {
   return (
-    <main style={{ padding: 20 }}>
-      <h1>LionCore Platform</h1>
+    <main className="min-h-screen bg-black text-white p-6">
+      <h1 className="text-4xl font-bold mb-6 text-center">
+        🦁 LionCore Platform
+      </h1>
 
-      <h2>Latest Posts</h2>
-      {posts.map((post) => (
-        <div key={post.id}>
-          <h3>{post.title}</h3>
-          <p>{post.content}</p>
-        </div>
-      ))}
+      <p className="text-center mb-10 text-gray-400">
+        A platform for ideas, posts, suggestions and community voice.
+      </p>
 
-      <hr />
+      <div className="flex flex-col gap-4 max-w-md mx-auto">
+        <a
+          href="/admin"
+          className="bg-yellow-500 text-black p-3 rounded text-center font-semibold"
+        >
+          Admin Panel
+        </a>
 
-      <h2>Drop Suggestion</h2>
-      <form onSubmit={submitSuggestion}>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          style={{ width: "100%", height: 100 }}
-        />
-        <br />
-        <button type="submit">Submit</button>
-      </form>
+        <a
+          href="/posts"
+          className="bg-white text-black p-3 rounded text-center font-semibold"
+        >
+          View Posts
+        </a>
 
-      <hr />
-
-      <h3>All Suggestions</h3>
-      {suggestions.map((s) => (
-        <p key={s.id}>• {s.message}</p>
-      ))}
+        <a
+          href="/suggest"
+          className="bg-gray-700 p-3 rounded text-center font-semibold"
+        >
+          Write Suggestion
+        </a>
+      </div>
     </main>
   );
 }
