@@ -9,9 +9,36 @@ export default function Home() {
   const [messages, setMessages] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    fetchPosts();
-    fetchSuggestions();
-  }, []);
+  fetchPosts();
+  fetchSuggestions();
+
+  const postChannel = supabase
+    .channel("posts-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "posts" },
+      () => {
+        fetchPosts();
+      }
+    )
+    .subscribe();
+
+  const suggestionChannel = supabase
+    .channel("suggestions-changes")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "suggestions" },
+      () => {
+        fetchSuggestions();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(postChannel);
+    supabase.removeChannel(suggestionChannel);
+  };
+}, []);
 
   async function fetchPosts() {
     const { data } = await supabase
