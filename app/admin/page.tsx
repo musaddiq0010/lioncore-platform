@@ -10,85 +10,49 @@ export default function Admin() {
   const [content, setContent] = useState("");
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-  if (!authenticated) return;
-
-  fetchPosts();
-  fetchSuggestions();
-
-  const channel = supabase
-    .channel("admin-live")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "posts" },
-      () => fetchPosts()
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "suggestions" },
-      () => fetchSuggestions()
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [authenticated]);
-  
+  // 🔐 Simple Admin Password
   const handleLogin = () => {
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+    if (password === "lion123") {
       setAuthenticated(true);
-      fetchPosts();
-      fetchSuggestions();
     } else {
       alert("Wrong password");
     }
   };
 
-  async function fetchPosts() {
+  // 📥 Fetch Posts
+  const fetchPosts = async () => {
     const { data } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setPosts(data);
-  }
+    setPosts(data || []);
+  };
 
-  async function fetchSuggestions() {
+  // 📥 Fetch Suggestions
+  const fetchSuggestions = async () => {
     const { data } = await supabase
       .from("suggestions")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setSuggestions(data);
-  }
+    setSuggestions(data || []);
+  };
 
-  const handleSubmit = async (e: any) => {
-    e.preventDefault();
-    if (loading) return;
+  // 📝 Create Post
+  const createPost = async () => {
+    if (!title || !content) return alert("Fill all fields");
 
-    setLoading(true);
-
-    await supabase.from("posts").insert([
-      { title, content },
-    ]);
+    await supabase.from("posts").insert([{ title, content }]);
 
     setTitle("");
     setContent("");
-    fetchPosts();
-    setLoading(false);
+    alert("Post created");
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this post?")) return;
-
-    await supabase.from("posts").delete().eq("id", id);
-    fetchPosts();
-  };
-
-  const approveSuggestion = async (id: string) => {
+  // ✅ Approve Suggestion
+  const approveSuggestion = async (id: number) => {
     await supabase
       .from("suggestions")
       .update({ approved: true })
@@ -97,20 +61,45 @@ export default function Admin() {
     fetchSuggestions();
   };
 
-  const deleteSuggestion = async (id: string) => {
-    if (!confirm("Delete this suggestion?")) return;
-
+  // 🔴 Delete Suggestion
+  const deleteSuggestion = async (id: number) => {
     await supabase.from("suggestions").delete().eq("id", id);
     fetchSuggestions();
   };
 
+  // 🔄 Live Realtime Updates
+  useEffect(() => {
+    if (!authenticated) return;
+
+    fetchPosts();
+    fetchSuggestions();
+
+    const channel = supabase
+      .channel("admin-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        fetchPosts
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "suggestions" },
+        fetchSuggestions
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authenticated]);
+
   if (!authenticated) {
     return (
       <div style={{ padding: 20 }}>
-        <h1>Admin Login</h1>
+        <h2>Admin Login</h2>
         <input
           type="password"
-          placeholder="Enter admin password"
+          placeholder="Enter password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
@@ -124,89 +113,54 @@ export default function Admin() {
       <h1>Admin Panel</h1>
 
       <h2>Create Post</h2>
-
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Post title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
-        <br /><br />
-
-        <textarea
-          placeholder="Post content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-        />
-        <br /><br />
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Uploading..." : "Upload Post"}
-        </button>
-      </form>
+      <input
+        placeholder="Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <br />
+      <textarea
+        placeholder="Content"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+      <br />
+      <button onClick={createPost}>Publish</button>
 
       <hr />
 
-      <h2>Posts</h2>
-      {posts.map((post) => (
-        <div key={post.id} style={{ marginBottom: 15 }}>
-          <strong>{post.title}</strong>
-          <br />
-          <button onClick={() => handleDelete(post.id)}>
-            Delete
-          </button>
-        </div>
-      ))}
+      <h2>All Suggestions</h2>
 
-      <hr />
+      {suggestions.map((s) => (
+        <div
+          key={s.id}
+          style={{
+            border: "1px solid gray",
+            padding: 10,
+            marginBottom: 10,
+          }}
+        >
+          <p>{s.message}</p>
+          <p>
+            Status:{" "}
+            {s.approved ? (
+              <span style={{ color: "green" }}>Approved</span>
+            ) : (
+              <span style={{ color: "red" }}>Pending</span>
+            )}
+          </p>
 
-      <h2>Pending Suggestions</h2>
-
-      {suggestions
-        .filter((s) => !s.approved)
-        .map((s) => (
-          <div key={s.id} style={{ marginBottom: 10 }}>
-            <p>{s.message}</p>
+          {!s.approved && (
             <button onClick={() => approveSuggestion(s.id)}>
               Approve
             </button>
-            <button onClick={() => deleteSuggestion(s.id)}>
-              Delete
-            </button>
-          </div>
-        ))}
-    </div>
-  );
-               }
-        <textarea
-          placeholder="Post content"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-        />
-        <br /><br />
+          )}
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Uploading..." : "Upload Post"}
-        </button>
-      </form>
-
-      <hr />
-
-      <h2>Existing Posts</h2>
-
-      {posts.map((post) => (
-        <div key={post.id} style={{ marginBottom: 15 }}>
-          <strong>{post.title}</strong>
-          <br />
-          <button onClick={() => handleDelete(post.id)}>
+          <button onClick={() => deleteSuggestion(s.id)}>
             Delete
           </button>
         </div>
       ))}
     </div>
   );
-            }
+}
