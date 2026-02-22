@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Admin() {
+
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [title, setTitle] = useState("");
@@ -11,63 +12,28 @@ export default function Admin() {
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
-  // 🔐 Simple Admin Password
-  const handleLogin = () => {
-    if (password === "lion123") {
-      setAuthenticated(true);
-    } else {
-      alert("Wrong password");
-    }
-  };
-
-  // 📥 Fetch Posts
   const fetchPosts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    setPosts(data || []);
+    if (!error && data) {
+      setPosts(data);
+    }
   };
 
-  // 📥 Fetch Suggestions
   const fetchSuggestions = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("suggestions")
       .select("*")
       .order("created_at", { ascending: false });
 
-    setSuggestions(data || []);
+    if (!error && data) {
+      setSuggestions(data);
+    }
   };
 
-  // 📝 Create Post
-  const createPost = async () => {
-    if (!title || !content) return alert("Fill all fields");
-
-    await supabase.from("posts").insert([{ title, content }]);
-
-    setTitle("");
-    setContent("");
-    alert("Post created");
-  };
-
-  // ✅ Approve Suggestion
-  const approveSuggestion = async (id: number) => {
-    await supabase
-      .from("suggestions")
-      .update({ approved: true })
-      .eq("id", id);
-
-    fetchSuggestions();
-  };
-
-  // 🔴 Delete Suggestion
-  const deleteSuggestion = async (id: number) => {
-    await supabase.from("suggestions").delete().eq("id", id);
-    fetchSuggestions();
-  };
-
-  // 🔄 Live Realtime Updates
   useEffect(() => {
     if (!authenticated) return;
 
@@ -79,12 +45,12 @@ export default function Admin() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
-        fetchPosts
+        () => fetchPosts()
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "suggestions" },
-        fetchSuggestions
+        () => fetchSuggestions()
       )
       .subscribe();
 
@@ -92,7 +58,6 @@ export default function Admin() {
       supabase.removeChannel(channel);
     };
   }, [authenticated]);
-
   if (!authenticated) {
     return (
       <div style={{ padding: 20 }}>
