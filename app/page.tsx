@@ -67,7 +67,7 @@ export default function Home() {
           <h4>Suggestions:</h4>
 
           {suggestions
-            .filter((s) => s.post_id === post.id)
+            .filter((s) => s.post_id === post.id && s.approved === true)
             .map((s) => (
               <p key={s.id}>• {s.message}</p>
             ))}
