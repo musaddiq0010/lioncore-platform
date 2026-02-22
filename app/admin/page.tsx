@@ -6,51 +6,57 @@ import { supabase } from "../../lib/supabase";
 export default function Admin() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function createPost(e: React.FormEvent) {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    if (!title || !content) {
-      alert("Fill all fields");
+    if (loading) return; // prevent double click
+    setLoading(true);
+
+    const { error } = await supabase.from("posts").insert([
+      { title, content },
+    ]);
+
+    if (error) {
+      alert("Error uploading post");
+      setLoading(false);
       return;
     }
 
-    const { error } = await supabase
-      .from("posts")
-      .insert([{ title, content }]);
+    alert("Post uploaded successfully!");
 
-    if (error) {
-      alert("Error creating post");
-      console.log(error);
-    } else {
-      alert("Post created!");
-      setTitle("");
-      setContent("");
-    }
-  }
+    setTitle("");
+    setContent("");
+    setLoading(false);
+  };
 
   return (
-    <main style={{ padding: 20 }}>
+    <div style={{ padding: 20 }}>
       <h1>Admin Panel</h1>
 
-      <form onSubmit={createPost}>
+      <form onSubmit={handleSubmit}>
         <input
-          placeholder="Post Title"
+          type="text"
+          placeholder="Post title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={{ width: "100%", marginBottom: 10 }}
+          required
         />
+        <br /><br />
 
         <textarea
-          placeholder="Post Content"
+          placeholder="Post content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          style={{ width: "100%", height: 150 }}
+          required
         />
+        <br /><br />
 
-        <br />
-        <button type="submit">Publish</button>
+        <button type="submit" disabled={loading}>
+          {loading ? "Uploading..." : "Upload Post"}
+        </button>
       </form>
-    </main>
+    </div>
   );
-      }
+  }
