@@ -59,19 +59,18 @@ export default function Home() {
   }
 
   async function handleSubmit(postId: string) {
-    const message = messages[postId];
-    if (!message) return;
+  const message = messages[postId];
+  if (!message) return;
 
-    await supabase.from("suggestions").insert([
-      {
-        post_id: postId,
-        message,
-      },
-    ]);
+  await supabase.from("suggestions").insert([
+    {
+      message: message,
+    },
+  ]);
 
-    setMessages({ ...messages, [postId]: "" });
-    fetchSuggestions();
-  }
+  setMessages({ ...messages, [postId]: "" });
+  fetchSuggestions();
+}
 
   return (
     <div style={{ padding: 20 }}>
