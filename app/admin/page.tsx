@@ -9,7 +9,7 @@ export default function Admin() {
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
-  // SIMPLE PASSWORD PROTECTION
+  // 🔐 SIMPLE ADMIN PASSWORD
   const handleLogin = () => {
     if (password === "admin123") {
       setAuthenticated(true);
@@ -18,7 +18,7 @@ export default function Admin() {
     }
   };
 
-  // FETCH POSTS
+  // 📦 FETCH POSTS
   const fetchPosts = async () => {
     const { data } = await supabase
       .from("posts")
@@ -28,7 +28,7 @@ export default function Admin() {
     if (data) setPosts(data);
   };
 
-  // FETCH SUGGESTIONS
+  // 📦 FETCH SUGGESTIONS
   const fetchSuggestions = async () => {
     const { data } = await supabase
       .from("suggestions")
@@ -38,6 +38,30 @@ export default function Admin() {
     if (data) setSuggestions(data);
   };
 
+  // ❌ DELETE POST
+  const deletePost = async (id: string) => {
+    if (!confirm("Delete this post?")) return;
+
+    await supabase.from("posts").delete().eq("id", id);
+    fetchPosts();
+  };
+
+  // ✅ APPROVE SUGGESTION
+  const approveSuggestion = async (id: string) => {
+    await supabase
+      .from("suggestions")
+      .update({ approved: true })
+      .eq("id", id);
+
+    fetchSuggestions();
+  };
+
+  // ❌ DECLINE SUGGESTION
+  const deleteSuggestion = async (id: string) => {
+    await supabase.from("suggestions").delete().eq("id", id);
+    fetchSuggestions();
+  };
+
   useEffect(() => {
     if (!authenticated) return;
 
@@ -45,9 +69,10 @@ export default function Admin() {
     fetchSuggestions();
   }, [authenticated]);
 
+  // 🔐 LOGIN SCREEN
   if (!authenticated) {
     return (
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 40 }}>
         <h2>Admin Login</h2>
         <input
           type="password"
@@ -60,28 +85,73 @@ export default function Admin() {
     );
   }
 
+  // 🛠 ADMIN DASHBOARD
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 40 }}>
       <h1>Admin Dashboard</h1>
 
       <h2>Posts</h2>
       {posts.map((post) => (
-        <div key={post.id} style={{ marginBottom: 10 }}>
-          <strong>{post.title}</strong>
+        <div
+          key={post.id}
+          style={{
+            border: "1px solid #ccc",
+            padding: 15,
+            marginBottom: 20,
+          }}
+        >
+          <h3>{post.title}</h3>
           <p>{post.content}</p>
-        </div>
-      ))}
 
-      <h2>Suggestions</h2>
-      {suggestions.length === 0 && <p>No suggestions yet</p>}
+          <button
+            onClick={() => deletePost(post.id)}
+            style={{ background: "red", color: "white" }}
+          >
+            Delete Post
+          </button>
 
-      {suggestions.map((s) => (
-        <div key={s.id} style={{ marginBottom: 10 }}>
-          <p>
-            <strong>Post ID:</strong> {s.post_id}
-          </p>
-          <p>{s.message}</p>
-          <hr />
+          <h4 style={{ marginTop: 20 }}>Suggestions</h4>
+
+          {suggestions
+            .filter((s) => s.post_id === post.id)
+            .map((s) => (
+              <div
+                key={s.id}
+                style={{
+                  border: "1px solid gray",
+                  padding: 10,
+                  marginTop: 10,
+                }}
+              >
+                <p>{s.message}</p>
+                <p>Status: {s.approved ? "✅ Approved" : "⏳ Pending"}</p>
+
+                {!s.approved && (
+                  <>
+                    <button
+                      onClick={() => approveSuggestion(s.id)}
+                      style={{
+                        background: "green",
+                        color: "white",
+                        marginRight: 10,
+                      }}
+                    >
+                      Approve
+                    </button>
+
+                    <button
+                      onClick={() => deleteSuggestion(s.id)}
+                      style={{
+                        background: "gray",
+                        color: "white",
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
         </div>
       ))}
     </div>
