@@ -4,34 +4,38 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Admin() {
-
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
+  // SIMPLE PASSWORD PROTECTION
+  const handleLogin = () => {
+    if (password === "admin123") {
+      setAuthenticated(true);
+    } else {
+      alert("Wrong password");
+    }
+  };
+
+  // FETCH POSTS
   const fetchPosts = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setPosts(data);
-    }
+    if (data) setPosts(data);
   };
 
+  // FETCH SUGGESTIONS
   const fetchSuggestions = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("suggestions")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setSuggestions(data);
-    }
+    if (data) setSuggestions(data);
   };
 
   useEffect(() => {
@@ -39,25 +43,8 @@ export default function Admin() {
 
     fetchPosts();
     fetchSuggestions();
-
-    const channel = supabase
-      .channel("admin-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => fetchPosts()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "suggestions" },
-        () => fetchSuggestions()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [authenticated]);
+
   if (!authenticated) {
     return (
       <div style={{ padding: 20 }}>
@@ -75,57 +62,28 @@ export default function Admin() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Admin Panel</h1>
+      <h1>Admin Dashboard</h1>
 
-      <h2>Create Post</h2>
-      <input
-        placeholder="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <br />
-      <textarea
-        placeholder="Content"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <br />
-      <button onClick={createPost}>Publish</button>
+      <h2>Posts</h2>
+      {posts.map((post) => (
+        <div key={post.id} style={{ marginBottom: 10 }}>
+          <strong>{post.title}</strong>
+          <p>{post.content}</p>
+        </div>
+      ))}
 
-      <hr />
-
-      <h2>All Suggestions</h2>
+      <h2>Suggestions</h2>
+      {suggestions.length === 0 && <p>No suggestions yet</p>}
 
       {suggestions.map((s) => (
-        <div
-          key={s.id}
-          style={{
-            border: "1px solid gray",
-            padding: 10,
-            marginBottom: 10,
-          }}
-        >
-          <p>{s.message}</p>
+        <div key={s.id} style={{ marginBottom: 10 }}>
           <p>
-            Status:{" "}
-            {s.approved ? (
-              <span style={{ color: "green" }}>Approved</span>
-            ) : (
-              <span style={{ color: "red" }}>Pending</span>
-            )}
+            <strong>Post ID:</strong> {s.post_id}
           </p>
-
-          {!s.approved && (
-            <button onClick={() => approveSuggestion(s.id)}>
-              Approve
-            </button>
-          )}
-
-          <button onClick={() => deleteSuggestion(s.id)}>
-            Delete
-          </button>
+          <p>{s.message}</p>
+          <hr />
         </div>
       ))}
     </div>
   );
-}
+      }
