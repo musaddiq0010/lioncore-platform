@@ -50,13 +50,14 @@ export default function Home() {
   }
 
   async function fetchSuggestions() {
-    const { data } = await supabase
-      .from("suggestions")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const { data } = await supabase
+    .from("suggestions")
+    .select("*")
+    .eq("approved", true) // 👈 IMPORTANT
+    .order("created_at", { ascending: false });
 
-    if (data) setSuggestions(data);
-  }
+  if (data) setSuggestions(data);
+}
 
   async function handleSubmit(postId: string) {
   const message = messages[postId];
