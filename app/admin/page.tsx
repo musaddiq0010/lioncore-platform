@@ -10,44 +10,41 @@ export default function Admin() {
 
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
 
-  
-
+  // 🔐 Listen for auth state
   useEffect(() => {
-  const getUser = async () => {
-    const { data } = await supabase.auth.getSession();
-    setUser(data.session?.user ?? null);
-  };
+    const { data } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user ?? null);
 
-  getUser();
+        if (session?.user) {
+          fetchPosts();
+          fetchSuggestions();
+        }
+      }
+    );
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setUser(session?.user ?? null);
-    }
-  );
-
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   async function handleLogin() {
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    alert(error.message);
-  }
+    if (error) alert(error.message);
   }
 
   async function handleLogout() {
-  await supabase.auth.signOut();
-  setUser(null);
-  setEmail("");
-  setPassword("");
+    await supabase.auth.signOut();
+    setUser(null);
+    setEmail("");
+    setPassword("");
   }
 
   async function fetchPosts() {
@@ -68,6 +65,21 @@ export default function Admin() {
     if (data) setSuggestions(data);
   }
 
+  async function handleCreatePost() {
+    if (!title || !content) return;
+
+    await supabase.from("posts").insert([
+      {
+        title,
+        content,
+      },
+    ]);
+
+    setTitle("");
+    setContent("");
+    fetchPosts();
+  }
+
   async function deletePost(id: string) {
     await supabase.from("posts").delete().eq("id", id);
     fetchPosts();
@@ -78,45 +90,64 @@ export default function Admin() {
       .from("suggestions")
       .update({ approved: true })
       .eq("id", id);
+
     fetchSuggestions();
   }
 
-  async function declineSuggestion(id: string) {
+  async function deleteSuggestion(id: string) {
     await supabase.from("suggestions").delete().eq("id", id);
     fetchSuggestions();
   }
 
+  // 🔒 If NOT logged in → show login
   if (!user) {
     return (
-      <div style={{ padding: 40 }}>
-        <h2>Admin Login</h2>
+      <div>
+        <h1>Admin Login</h1>
+
         <input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <br />
+
         <input
-          type="password"
           placeholder="Password"
+          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <br />
+
         <button onClick={handleLogin}>Login</button>
       </div>
     );
   }
 
+  // 🔥 Logged In → Show Dashboard
   return (
-    <div style={{ padding: 40 }}>
+    <div>
       <h1>Admin Dashboard</h1>
       <button onClick={handleLogout}>Logout</button>
+
+      <h2>Create Post</h2>
+      <input
+        placeholder="Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <br />
+      <textarea
+        placeholder="Content"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+      />
+      <br />
+      <button onClick={handleCreatePost}>Upload Post</button>
 
       <h2>Posts</h2>
       {posts.map((post) => (
         <div key={post.id}>
-          <strong>{post.title}</strong>
+          <h3>{post.title}</h3>
           <button onClick={() => deletePost(post.id)}>Delete</button>
         </div>
       ))}
@@ -125,18 +156,14 @@ export default function Admin() {
       {suggestions.map((s) => (
         <div key={s.id}>
           <p>{s.message}</p>
-          {!s.approved && (
-            <>
-              <button onClick={() => approveSuggestion(s.id)}>
-                Approve
-              </button>
-              <button onClick={() => declineSuggestion(s.id)}>
-                Decline
-              </button>
-            </>
-          )}
+          <button onClick={() => approveSuggestion(s.id)}>
+            Approve
+          </button>
+          <button onClick={() => deleteSuggestion(s.id)}>
+            Delete
+          </button>
         </div>
       ))}
     </div>
   );
-          }
+         }
