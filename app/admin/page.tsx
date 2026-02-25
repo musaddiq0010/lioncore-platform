@@ -33,16 +33,14 @@ export default function Admin() {
 }, []);
 
   async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) {
-      alert(error.message);
-    } else {
-      checkUser();
-    }
+  if (error) {
+    alert(error.message);
+  }
   }
 
   async function handleLogout() {
