@@ -4,32 +4,33 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function Admin() {
+  const ADMIN_EMAIL = "your-email@gmail.com"; // CHANGE THIS
+
   const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [posts, setPosts] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
-  // 🔐 Listen for auth state
+  const [posts, setPosts] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          fetchPosts();
-          fetchSuggestions();
-        }
-      }
-    );
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
+    checkUser();
   }, []);
+
+  async function checkUser() {
+    const { data } = await supabase.auth.getUser();
+    if (data.user?.email === ADMIN_EMAIL) {
+      setUser(data.user);
+      fetchPosts();
+      fetchSuggestions();
+    } else {
+      await supabase.auth.signOut();
+      setUser(null);
+    }
+  }
 
   async function handleLogin() {
     const { error } = await supabase.auth.signInWithPassword({
@@ -37,7 +38,11 @@ export default function Admin() {
       password,
     });
 
-    if (error) alert(error.message);
+    if (error) {
+      alert(error.message);
+    } else {
+      checkUser();
+    }
   }
 
   async function handleLogout() {
@@ -60,20 +65,16 @@ export default function Admin() {
     const { data } = await supabase
       .from("suggestions")
       .select("*")
+      .eq("approved", false)
       .order("created_at", { ascending: false });
 
     if (data) setSuggestions(data);
   }
 
-  async function handleCreatePost() {
+  async function createPost() {
     if (!title || !content) return;
 
-    await supabase.from("posts").insert([
-      {
-        title,
-        content,
-      },
-    ]);
+    await supabase.from("posts").insert([{ title, content }]);
 
     setTitle("");
     setContent("");
@@ -99,71 +100,71 @@ export default function Admin() {
     fetchSuggestions();
   }
 
-  // 🔒 If NOT logged in → show login
   if (!user) {
     return (
-      <div>
-        <h1>Admin Login</h1>
-
+      <div style={{ padding: 20 }}>
+        <h2>Admin Login</h2>
         <input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-
+        <br /><br />
         <input
-          placeholder="Password"
           type="password"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-
+        <br /><br />
         <button onClick={handleLogin}>Login</button>
       </div>
     );
   }
 
-  // 🔥 Logged In → Show Dashboard
   return (
-    <div>
-      <h1>Admin Dashboard</h1>
+    <div style={{ padding: 20 }}>
+      <h2>Admin Dashboard</h2>
       <button onClick={handleLogout}>Logout</button>
 
-      <h2>Create Post</h2>
+      <hr />
+
+      <h3>Create Post</h3>
       <input
         placeholder="Title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
-      <br />
+      <br /><br />
       <textarea
         placeholder="Content"
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
-      <br />
-      <button onClick={handleCreatePost}>Upload Post</button>
+      <br /><br />
+      <button onClick={createPost}>Upload Post</button>
 
-      <h2>Posts</h2>
+      <hr />
+
+      <h3>Posts</h3>
       {posts.map((post) => (
         <div key={post.id}>
-          <h3>{post.title}</h3>
+          <strong>{post.title}</strong>
+          <p>{post.content}</p>
           <button onClick={() => deletePost(post.id)}>Delete</button>
+          <hr />
         </div>
       ))}
 
-      <h2>Suggestions</h2>
+      <h3>Pending Suggestions</h3>
       {suggestions.map((s) => (
         <div key={s.id}>
           <p>{s.message}</p>
-          <button onClick={() => approveSuggestion(s.id)}>
-            Approve
-          </button>
-          <button onClick={() => deleteSuggestion(s.id)}>
-            Delete
-          </button>
+          <button onClick={() => approveSuggestion(s.id)}>Approve</button>
+          <button onClick={() => deleteSuggestion(s.id)}>Decline</button>
+          <hr />
         </div>
       ))}
     </div>
   );
-         }
+    }
