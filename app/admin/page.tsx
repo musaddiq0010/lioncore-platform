@@ -15,14 +15,24 @@ export default function Admin() {
     checkUser();
   }, []);
 
-  async function checkUser() {
-    const { data } = await supabase.auth.getUser();
-    setUser(data.user);
-    if (data.user) {
-      fetchPosts();
-      fetchSuggestions();
+  useEffect(() => {
+  const getUser = async () => {
+    const { data } = await supabase.auth.getSession();
+    setUser(data.session?.user ?? null);
+  };
+
+  getUser();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
     }
-  }
+  );
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
 
   async function handleLogin() {
     const { error } = await supabase.auth.signInWithPassword({
@@ -38,8 +48,10 @@ export default function Admin() {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    setUser(null);
+  await supabase.auth.signOut();
+  setUser(null);
+  setEmail("");
+  setPassword("");
   }
 
   async function fetchPosts() {
