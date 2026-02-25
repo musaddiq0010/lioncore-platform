@@ -11,9 +11,7 @@ export default function Admin() {
   const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
 
-  useEffect(() => {
-    checkUser();
-  }, []);
+  
 
   useEffect(() => {
   const getUser = async () => {
