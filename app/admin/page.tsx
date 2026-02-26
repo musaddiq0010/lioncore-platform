@@ -9,16 +9,40 @@ export default function AdminPage() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     checkSession();
-    fetchPosts();
-    fetchSuggestions();
   }, []);
 
   async function checkSession() {
     const { data } = await supabase.auth.getSession();
     setSession(data.session);
+    if (data.session) {
+      fetchPosts();
+      fetchSuggestions();
+    }
+  }
+
+  async function login() {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert(error.message);
+    } else {
+      checkSession();
+    }
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    setSession(null);
+    setEmail("");
+    setPassword("");
   }
 
   async function fetchPosts() {
@@ -37,16 +61,6 @@ export default function AdminPage() {
       .order("created_at", { ascending: false });
 
     if (data) setSuggestions(data);
-  }
-
-  async function login(email: string, password: string) {
-    await supabase.auth.signInWithPassword({ email, password });
-    checkSession();
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    setSession(null);
   }
 
   async function createPost() {
@@ -91,22 +105,23 @@ export default function AdminPage() {
     return (
       <div style={{ padding: 40 }}>
         <h2>Admin Login</h2>
+
         <input
           placeholder="Email"
-          onBlur={(e) => (window.email = e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
         <br /><br />
+
         <input
           type="password"
           placeholder="Password"
-          onBlur={(e) => (window.password = e.target.value)}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
         />
         <br /><br />
-        <button
-          onClick={() => login(window.email, window.password)}
-        >
-          Login
-        </button>
+
+        <button onClick={login}>Login</button>
       </div>
     );
   }
@@ -125,12 +140,14 @@ export default function AdminPage() {
         onChange={(e) => setTitle(e.target.value)}
       />
       <br /><br />
+
       <textarea
         placeholder="Content"
         value={content}
         onChange={(e) => setContent(e.target.value)}
       />
       <br /><br />
+
       <button onClick={createPost}>Upload Post</button>
 
       <hr />
@@ -159,4 +176,4 @@ export default function AdminPage() {
       ))}
     </div>
   );
-            }
+      }
