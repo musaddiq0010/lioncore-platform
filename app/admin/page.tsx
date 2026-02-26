@@ -5,22 +5,23 @@ import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
   const [session, setSession] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
   useEffect(() => {
-    checkSession();
+    checkUser();
   }, []);
 
-  async function checkSession() {
+  async function checkUser() {
     const { data } = await supabase.auth.getSession();
     setSession(data.session);
+
     if (data.session) {
-      fetchPosts();
       fetchSuggestions();
     }
   }
@@ -34,24 +35,27 @@ export default function AdminPage() {
     if (error) {
       alert(error.message);
     } else {
-      checkSession();
+      location.reload();
     }
   }
 
   async function logout() {
     await supabase.auth.signOut();
-    setSession(null);
-    setEmail("");
-    setPassword("");
+    location.reload();
   }
 
-  async function fetchPosts() {
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
+  async function uploadPost() {
+    const { error } = await supabase.from("posts").insert([
+      { title, content },
+    ]);
 
-    if (data) setPosts(data);
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Post uploaded");
+      setTitle("");
+      setContent("");
+    }
   }
 
   async function fetchSuggestions() {
@@ -63,22 +67,7 @@ export default function AdminPage() {
     if (data) setSuggestions(data);
   }
 
-  async function createPost() {
-    if (!title || !content) return alert("Fill all fields");
-
-    await supabase.from("posts").insert([{ title, content }]);
-
-    setTitle("");
-    setContent("");
-    fetchPosts();
-  }
-
-  async function deletePost(id: string) {
-    await supabase.from("posts").delete().eq("id", id);
-    fetchPosts();
-  }
-
-  async function approveSuggestion(id: string) {
+  async function approve(id: number) {
     await supabase
       .from("suggestions")
       .update({ status: "approved" })
@@ -87,7 +76,7 @@ export default function AdminPage() {
     fetchSuggestions();
   }
 
-  async function declineSuggestion(id: string) {
+  async function decline(id: number) {
     await supabase
       .from("suggestions")
       .update({ status: "declined" })
@@ -96,15 +85,19 @@ export default function AdminPage() {
     fetchSuggestions();
   }
 
-  async function deleteSuggestion(id: string) {
-    await supabase.from("suggestions").delete().eq("id", id);
+  async function deleteSuggestion(id: number) {
+    await supabase
+      .from("suggestions")
+      .delete()
+      .eq("id", id);
+
     fetchSuggestions();
   }
 
   if (!session) {
     return (
       <div style={{ padding: 40 }}>
-        <h2>Admin Login</h2>
+        <h1>Admin Login</h1>
 
         <input
           placeholder="Email"
@@ -129,11 +122,13 @@ export default function AdminPage() {
   return (
     <div style={{ padding: 40 }}>
       <h1>Admin Dashboard</h1>
+
       <button onClick={logout}>Logout</button>
 
       <hr />
 
-      <h2>Create Post</h2>
+      <h2>Upload Post</h2>
+
       <input
         placeholder="Title"
         value={title}
@@ -148,30 +143,21 @@ export default function AdminPage() {
       />
       <br /><br />
 
-      <button onClick={createPost}>Upload Post</button>
+      <button onClick={uploadPost}>Upload</button>
 
       <hr />
 
-      <h2>All Posts</h2>
-      {posts.map((post) => (
-        <div key={post.id}>
-          <h3>{post.title}</h3>
-          <button onClick={() => deletePost(post.id)}>Delete</button>
-          <hr />
-        </div>
-      ))}
+      <h2>Suggestions</h2>
 
-      <h2>All Suggestions</h2>
       {suggestions.map((s) => (
-        <div key={s.id}>
+        <div key={s.id} style={{ border: "1px solid gray", padding: 10, marginBottom: 10 }}>
+          <p><b>{s.title}</b></p>
           <p>{s.content}</p>
           <p>Status: {s.status}</p>
 
-          <button onClick={() => approveSuggestion(s.id)}>Approve</button>
-          <button onClick={() => declineSuggestion(s.id)}>Decline</button>
+          <button onClick={() => approve(s.id)}>Approve</button>
+          <button onClick={() => decline(s.id)}>Decline</button>
           <button onClick={() => deleteSuggestion(s.id)}>Delete</button>
-
-          <hr />
         </div>
       ))}
     </div>
