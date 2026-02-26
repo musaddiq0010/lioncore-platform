@@ -1,88 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function AdminPage() {
-  const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-
+  const [posts, setPosts] = useState<any[]>([]);
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
+    fetchData();
   }, []);
 
-  async function checkUser() {
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
+  async function fetchData() {
+    setLoading(true);
 
-    if (data.session) {
-      fetchSuggestions();
-    }
-  }
-
-  async function login() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      alert(error.message);
-    } else {
-      location.reload();
-    }
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    location.reload();
-  }
-
-  async function uploadPost() {
-    const { error } = await supabase.from("posts").insert([
-      { title, content },
-    ]);
-
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Post uploaded");
-      setTitle("");
-      setContent("");
-    }
-  }
-
-  async function fetchSuggestions() {
-    const { data } = await supabase
-      .from("suggestions")
+    const { data: postsData, error: postsError } = await supabase
+      .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setSuggestions(data);
+    const { data: suggestionsData, error: suggestionsError } =
+      await supabase
+        .from("suggestions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+    if (postsError) console.log(postsError);
+    if (suggestionsError) console.log(suggestionsError);
+
+    setPosts(postsData || []);
+    setSuggestions(suggestionsData || []);
+    setLoading(false);
   }
 
-  async function approve(id: number) {
+  async function approveSuggestion(id: number) {
     await supabase
       .from("suggestions")
       .update({ status: "approved" })
       .eq("id", id);
 
-    fetchSuggestions();
+    fetchData();
   }
 
-  async function decline(id: number) {
+  async function declineSuggestion(id: number) {
     await supabase
       .from("suggestions")
       .update({ status: "declined" })
       .eq("id", id);
 
-    fetchSuggestions();
+    fetchData();
   }
 
   async function deleteSuggestion(id: number) {
@@ -91,75 +63,47 @@ export default function AdminPage() {
       .delete()
       .eq("id", id);
 
-    fetchSuggestions();
+    fetchData();
   }
 
-  if (!session) {
-    return (
-      <div style={{ padding: 40 }}>
-        <h1>Admin Login</h1>
+  async function deletePost(id: number) {
+    await supabase
+      .from("posts")
+      .delete()
+      .eq("id", id);
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <br /><br />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <br /><br />
-
-        <button onClick={login}>Login</button>
-      </div>
-    );
+    fetchData();
   }
 
   return (
-    <div style={{ padding: 40 }}>
+    <div style={{ padding: 20 }}>
       <h1>Admin Dashboard</h1>
 
-      <button onClick={logout}>Logout</button>
+      {loading && <p>Loading...</p>}
 
-      <hr />
-
-      <h2>Upload Post</h2>
-
-      <input
-        placeholder="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      <br /><br />
-
-      <textarea
-        placeholder="Content"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
-      <br /><br />
-
-      <button onClick={uploadPost}>Upload</button>
-
-      <hr />
+      <h2>Posts</h2>
+      {posts.length === 0 && <p>No posts found</p>}
+      {posts.map((post) => (
+        <div key={post.id} style={{ border: "1px solid gray", padding: 10, marginBottom: 10 }}>
+          <h3>{post.title}</h3>
+          <p>{post.content}</p>
+          <button onClick={() => deletePost(post.id)}>Delete</button>
+        </div>
+      ))}
 
       <h2>Suggestions</h2>
-
+      {suggestions.length === 0 && <p>No suggestions found</p>}
       {suggestions.map((s) => (
         <div key={s.id} style={{ border: "1px solid gray", padding: 10, marginBottom: 10 }}>
-          <p><b>{s.title}</b></p>
+          <h3>{s.title}</h3>
           <p>{s.content}</p>
           <p>Status: {s.status}</p>
 
-          <button onClick={() => approve(s.id)}>Approve</button>
-          <button onClick={() => decline(s.id)}>Decline</button>
+          <button onClick={() => approveSuggestion(s.id)}>Approve</button>
+          <button onClick={() => declineSuggestion(s.id)}>Decline</button>
           <button onClick={() => deleteSuggestion(s.id)}>Delete</button>
         </div>
       ))}
     </div>
   );
-      }
+    }
